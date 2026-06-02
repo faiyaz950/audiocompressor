@@ -427,36 +427,63 @@ imgCompressBtn.addEventListener('click', async () => {
   }
 });
 
-function compressImageToBlob(file, format, quality, maxDim) {
+async function compressImageToBlob(file, format, quality, maxDim) {
+  // Draw image onto canvas (with optional resize)
+  const img = await loadImage(file);
+  let { width, height } = img;
+
+  if (maxDim > 0 && (width > maxDim || height > maxDim)) {
+    if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+    else                 { width = Math.round(width * maxDim / height); height = maxDim; }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (format === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); }
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const mime = format === 'jpeg' ? 'image/jpeg'
+             : format === 'webp' ? 'image/webp'
+             : 'image/png';
+
+  // For PNG (lossless) just encode once — rely on resize for savings
+  if (format === 'png') return canvasToBlob(canvas, mime, undefined);
+
+  // For JPEG/WebP: step quality down until output is at least 15% smaller than input
+  let q = quality;
+  let blob;
+  do {
+    blob = await canvasToBlob(canvas, mime, q);
+    if (blob.size < file.size * 0.85) break;  // success — meaningfully smaller
+    q = Math.round((q - 0.08) * 100) / 100;   // reduce by ~8% each step
+  } while (q >= 0.08);
+
+  // Update slider UI to reflect the quality actually used
+  if (q !== quality) {
+    const pct = Math.round(q * 100);
+    imgQualitySlider.value = Math.max(10, pct);
+    imgQualityLabel.textContent = `${Math.max(10, pct)}%`;
+    imgQuality = q;
+  }
+
+  return blob;
+}
+
+function loadImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-
-      if (maxDim > 0 && (width > maxDim || height > maxDim)) {
-        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
-        else                 { width = Math.round(width * maxDim / height); height = maxDim; }
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width  = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      // White background for JPEG (no transparency)
-      if (format === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const mimeType = format === 'jpeg' ? 'image/jpeg'
-                     : format === 'webp' ? 'image/webp'
-                     : 'image/png';
-      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')),
-        mimeType, format === 'png' ? undefined : quality);
-    };
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
     img.onerror = reject;
     img.src = url;
   });
+}
+
+function canvasToBlob(canvas, mime, quality) {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), mime, quality)
+  );
 }
 
 // ─── Download image ───
