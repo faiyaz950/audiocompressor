@@ -1,10 +1,10 @@
 /* AudioShrink — browser-native compression via Web Audio API + lamejs
    No SharedArrayBuffer needed. Works from file:// directly. */
 
-const BITRATES = [32, 64, 96, 128, 192];
+const BITRATES = [32, 48, 64, 96, 128];
 const HINTS = [
   'Smallest file — great for voice memos & speech',
-  'Small file — clear voice quality',
+  'Very small — clear speech quality',
   'Recommended — ideal for voice & podcasts',
   'High quality — music & broadcast audio',
   'Maximum quality — full-fidelity output',
@@ -127,10 +127,27 @@ async function encodeMp3() {
   const leftPCM     = audioBuffer.getChannelData(0);
   const rightPCM    = numChannels > 1 ? audioBuffer.getChannelData(1) : audioBuffer.getChannelData(0);
 
-  setProgress(15, `Encoding to MP3 at ${selectedBitrate} kbps…`);
+  // 2. Guard: detect input bitrate so we never encode HIGHER than original
+  const inputKbps = (selectedFile.size * 8) / (audioBuffer.duration * 1000);
+  let targetBitrate = selectedBitrate;
 
-  // 2. Encode PCM → MP3 with lamejs (runs synchronously in chunks)
-  const encoder  = new lamejs.Mp3Encoder(numChannels, sampleRate, selectedBitrate);
+  if (targetBitrate >= inputKbps) {
+    // Pick the highest preset that is strictly below the input bitrate
+    const lower = BITRATES.filter(b => b < inputKbps);
+    targetBitrate = lower.length ? lower[lower.length - 1] : BITRATES[0];
+
+    // Sync slider UI to reflect the auto-corrected value
+    const newIdx = BITRATES.indexOf(targetBitrate);
+    bitrateSlider.value = newIdx;
+    bitrateLabel.textContent = `${targetBitrate} kbps`;
+    qualityHint.textContent  = HINTS[newIdx];
+    bitrateSlider.style.setProperty('--fill', (newIdx / (BITRATES.length - 1)) * 100 + '%');
+  }
+
+  setProgress(15, `Encoding to MP3 at ${targetBitrate} kbps (original ~${Math.round(inputKbps)} kbps)…`);
+
+  // 3. Encode PCM → MP3 with lamejs (runs synchronously in chunks)
+  const encoder  = new lamejs.Mp3Encoder(numChannels, sampleRate, targetBitrate);
   const mp3Parts = [];
   const CHUNK    = 1152; // lamejs requirement
   const total    = leftPCM.length;
@@ -162,7 +179,7 @@ async function encodeMp3() {
 
   outputBlob = new Blob(mp3Parts, { type: 'audio/mpeg' });
   const base  = selectedFile.name.replace(/\.[^.]+$/, '');
-  outputFilename = `${base}_compressed.mp3`;
+  outputFilename = `${base}_${targetBitrate}kbps.mp3`;
 
   setProgress(100, 'Done!');
   showResult();
