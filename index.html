@@ -28,9 +28,27 @@
             </linearGradient>
           </defs>
         </svg>
-        <span>AudioShrink</span>
+        <span>ShrinkIt</span>
       </div>
-      <p class="tagline">Compress audio files — smaller size, same crystal-clear voice</p>
+      <p class="tagline">Compress audio &amp; images — smaller size, same quality</p>
+
+      <!-- Tab switcher -->
+      <div class="tab-bar">
+        <button class="tab active" id="tabAudio">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 12V4M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Audio
+        </button>
+        <button class="tab" id="tabImage">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="1" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/>
+            <path d="M1 11l4-4 3 3 2-2 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Image
+        </button>
+      </div>
     </header>
 
     <div class="card" id="mainCard">
@@ -163,6 +181,179 @@
       </div>
     </div>
 
+    <!-- ══════════════ IMAGE COMPRESSOR CARD ══════════════ -->
+    <div class="card hidden" id="imageCard">
+
+      <!-- Step 1: Upload -->
+      <div id="imgUploadSection">
+        <div class="drop-zone" id="imgDropZone">
+          <input type="file" id="imgFileInput" accept="image/*" hidden />
+          <div class="drop-icon">
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <circle cx="26" cy="26" r="26" fill="rgba(236,72,153,0.1)"/>
+              <rect x="13" y="16" width="26" height="20" rx="3" stroke="#ec4899" stroke-width="2.2"/>
+              <circle cx="19" cy="22" r="2" fill="#ec4899"/>
+              <path d="M13 30l7-6 5 5 3-3 9 9" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="drop-title">Drop your image here</p>
+          <p class="drop-sub">or <button class="link-btn pink" onclick="document.getElementById('imgFileInput').click()">browse to upload</button></p>
+          <p class="drop-formats">Supports JPG, PNG, WebP, GIF, BMP, AVIF</p>
+        </div>
+      </div>
+
+      <!-- Step 2: Configure -->
+      <div id="imgConfigSection" class="hidden">
+        <!-- Preview strip -->
+        <div class="preview-strip">
+          <div class="preview-box">
+            <img id="imgPreviewBefore" alt="Original" />
+            <span class="preview-label">Original</span>
+          </div>
+          <div class="preview-arrow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="preview-box">
+            <img id="imgPreviewAfter" alt="Compressed" />
+            <span class="preview-label">Preview</span>
+          </div>
+        </div>
+
+        <div class="file-info" style="margin-bottom:20px">
+          <div class="file-icon pink-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="10" fill="rgba(236,72,153,0.12)"/>
+              <rect x="9" y="10" width="22" height="20" rx="3" stroke="#ec4899" stroke-width="2"/>
+              <circle cx="14" cy="16" r="2" fill="#ec4899"/>
+              <path d="M9 24l6-5 4 4 3-3 8 7" stroke="#ec4899" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="file-details">
+            <p class="file-name" id="imgFileName">—</p>
+            <p class="file-size" id="imgFileSize">—</p>
+          </div>
+          <button class="icon-btn" id="imgRemoveFile" title="Remove file">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Output Format</label>
+            <div class="format-pills" id="imgFormatPills">
+              <button class="pill-pink active" data-format="jpeg">JPEG</button>
+              <button class="pill-pink" data-format="webp">WebP</button>
+              <button class="pill-pink" data-format="png">PNG</button>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <label>
+              Quality
+              <span class="badge pink-badge" id="imgQualityLabel">80%</span>
+            </label>
+            <div class="slider-track">
+              <input type="range" id="imgQualitySlider" min="10" max="95" step="5" value="80" class="pink-slider" />
+              <div class="slider-marks">
+                <span>10%</span>
+                <span>40%</span>
+                <span>70%</span>
+                <span>95%</span>
+              </div>
+            </div>
+            <p class="hint pink-hint" id="imgQualityHint">Great quality — recommended for most images</p>
+          </div>
+
+          <div class="setting-group">
+            <label>
+              Max Dimension
+              <span class="badge pink-badge" id="imgDimLabel">Original</span>
+            </label>
+            <div class="slider-track">
+              <input type="range" id="imgDimSlider" min="0" max="4" step="1" value="0" class="pink-slider" />
+              <div class="slider-marks">
+                <span>Original</span>
+                <span>2048</span>
+                <span>1280</span>
+                <span>800</span>
+                <span>480</span>
+              </div>
+            </div>
+            <p class="hint pink-hint" id="imgDimHint">Keep original dimensions</p>
+          </div>
+        </div>
+
+        <button class="compress-btn pink-btn" id="imgCompressBtn">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3v14M3 10l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Compress Image
+        </button>
+      </div>
+
+      <!-- Step 3: Result -->
+      <div id="imgResultSection" class="hidden">
+        <div class="result-icon">
+          <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+            <circle cx="28" cy="28" r="28" fill="rgba(16,185,129,0.1)"/>
+            <path d="M18 28l7 7 13-14" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="result-title">Compression Complete!</h2>
+
+        <!-- Side-by-side preview -->
+        <div class="preview-strip" style="margin-bottom:20px">
+          <div class="preview-box">
+            <img id="imgResultBefore" alt="Original" />
+            <span class="preview-label" id="imgResultBeforeLabel">—</span>
+          </div>
+          <div class="preview-arrow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="preview-box">
+            <img id="imgResultAfter" alt="Compressed" />
+            <span class="preview-label green" id="imgResultAfterLabel">—</span>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat">
+            <span class="stat-label">Original</span>
+            <span class="stat-value" id="imgOriginalSize">—</span>
+          </div>
+          <div class="stat-arrow">
+            <svg width="32" height="16" viewBox="0 0 32 16"><path d="M0 8h28M22 2l8 6-8 6" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Compressed</span>
+            <span class="stat-value green" id="imgCompressedSize">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Saved</span>
+            <span class="stat-value purple" id="imgSavedPct">—</span>
+          </div>
+        </div>
+
+        <div class="result-actions" style="margin-top:20px">
+          <button class="download-btn" id="imgDownloadBtn">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 3v10M5 9l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Download Compressed Image
+          </button>
+          <button class="secondary-btn" id="imgCompressAnother">Compress Another Image</button>
+        </div>
+      </div>
+    </div>
+    <!-- ══════════════ END IMAGE CARD ══════════════ -->
+
     <div class="features">
       <div class="feature">
         <div class="feature-icon">🔒</div>
@@ -189,7 +380,7 @@
   </main>
 
   <footer>
-    <p>AudioShrink · Built with FFmpeg WASM · Zero server uploads</p>
+    <p>ShrinkIt · Audio &amp; Image Compression · 100% Browser-Side · Zero server uploads</p>
   </footer>
 
   <script src="app.js"></script>

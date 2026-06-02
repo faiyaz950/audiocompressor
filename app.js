@@ -249,6 +249,232 @@ function resetToUpload() {
   show(uploadSection);
 }
 
+// ════════════════════════════════════════════════
+//  IMAGE COMPRESSOR
+// ════════════════════════════════════════════════
+
+const DIM_PRESETS  = [0, 2048, 1280, 800, 480]; // 0 = original
+const DIM_HINTS    = ['Keep original dimensions', 'Max 2048px — web display', 'Max 1280px — social media', 'Max 800px — thumbnails', 'Max 480px — smallest'];
+
+let imgFile       = null;
+let imgFormat     = 'jpeg';
+let imgQuality    = 0.80;
+let imgMaxDim     = 0;
+let imgOutputBlob = null;
+let imgOutputName = '';
+
+const imageCard        = document.getElementById('imageCard');
+const imgUploadSection = document.getElementById('imgUploadSection');
+const imgConfigSection = document.getElementById('imgConfigSection');
+const imgResultSection = document.getElementById('imgResultSection');
+
+const imgDropZone    = document.getElementById('imgDropZone');
+const imgFileInput   = document.getElementById('imgFileInput');
+const imgFileName    = document.getElementById('imgFileName');
+const imgFileSizeEl  = document.getElementById('imgFileSize');
+const imgRemoveFile  = document.getElementById('imgRemoveFile');
+
+const imgPreviewBefore = document.getElementById('imgPreviewBefore');
+const imgPreviewAfter  = document.getElementById('imgPreviewAfter');
+const imgResultBefore  = document.getElementById('imgResultBefore');
+const imgResultAfter   = document.getElementById('imgResultAfter');
+const imgResultBeforeLabel = document.getElementById('imgResultBeforeLabel');
+const imgResultAfterLabel  = document.getElementById('imgResultAfterLabel');
+
+const imgQualitySlider = document.getElementById('imgQualitySlider');
+const imgQualityLabel  = document.getElementById('imgQualityLabel');
+const imgQualityHint   = document.getElementById('imgQualityHint');
+const imgDimSlider     = document.getElementById('imgDimSlider');
+const imgDimLabel      = document.getElementById('imgDimLabel');
+const imgDimHint       = document.getElementById('imgDimHint');
+const imgCompressBtn   = document.getElementById('imgCompressBtn');
+
+const imgOriginalSizeEl   = document.getElementById('imgOriginalSize');
+const imgCompressedSizeEl = document.getElementById('imgCompressedSize');
+const imgSavedPctEl       = document.getElementById('imgSavedPct');
+const imgDownloadBtn      = document.getElementById('imgDownloadBtn');
+const imgCompressAnother  = document.getElementById('imgCompressAnother');
+
+// ─── Tab switcher ───
+document.getElementById('tabAudio').addEventListener('click', () => {
+  document.getElementById('tabAudio').classList.add('active');
+  document.getElementById('tabImage').classList.remove('active');
+  show(document.getElementById('mainCard'));
+  hide(imageCard);
+});
+document.getElementById('tabImage').addEventListener('click', () => {
+  document.getElementById('tabImage').classList.add('active');
+  document.getElementById('tabAudio').classList.remove('active');
+  hide(document.getElementById('mainCard'));
+  show(imageCard);
+});
+
+// ─── Image drag & drop ───
+['dragenter', 'dragover'].forEach(evt =>
+  imgDropZone.addEventListener(evt, e => { e.preventDefault(); imgDropZone.classList.add('drag-over'); })
+);
+['dragleave', 'drop'].forEach(evt =>
+  imgDropZone.addEventListener(evt, e => { e.preventDefault(); imgDropZone.classList.remove('drag-over'); })
+);
+imgDropZone.addEventListener('drop', e => handleImgFile(e.dataTransfer.files[0]));
+imgFileInput.addEventListener('change', () => handleImgFile(imgFileInput.files[0]));
+imgDropZone.addEventListener('click', e => {
+  if (!e.target.classList.contains('link-btn')) imgFileInput.click();
+});
+
+function handleImgFile(file) {
+  if (!file) return;
+  if (!/image\//i.test(file.type)) { alert('Please select an image file.'); return; }
+  imgFile = file;
+  imgFileName.textContent = file.name;
+  imgFileSizeEl.textContent = formatBytes(file.size);
+
+  const url = URL.createObjectURL(file);
+  imgPreviewBefore.src = url;
+  imgResultBefore.src  = url;
+
+  show(imgConfigSection);
+  hide(imgUploadSection);
+  updateImgPreview();
+}
+
+imgRemoveFile.addEventListener('click', () => {
+  imgFile = null;
+  imgFileInput.value = '';
+  hide(imgConfigSection);
+  show(imgUploadSection);
+});
+
+// ─── Format pills ───
+document.querySelectorAll('.pill-pink').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill-pink').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    imgFormat = pill.dataset.format;
+    updateImgPreview();
+  });
+});
+
+// ─── Quality slider ───
+imgQualitySlider.addEventListener('input', () => {
+  imgQuality = parseInt(imgQualitySlider.value) / 100;
+  imgQualityLabel.textContent = `${imgQualitySlider.value}%`;
+  const pct = ((parseInt(imgQualitySlider.value) - 10) / 85) * 100;
+  imgQualitySlider.style.setProperty('--fill', pct + '%');
+  const q = parseInt(imgQualitySlider.value);
+  imgQualityHint.textContent = q <= 30 ? 'Smallest file — some quality loss visible'
+    : q <= 60 ? 'Good compression — slight quality reduction'
+    : q <= 80 ? 'Great quality — recommended for most images'
+    : 'Near-lossless — minimal compression';
+  updateImgPreview();
+});
+imgQualitySlider.style.setProperty('--fill', '82%');
+
+// ─── Dimension slider ───
+imgDimSlider.addEventListener('input', () => {
+  const idx = parseInt(imgDimSlider.value);
+  imgMaxDim = DIM_PRESETS[idx];
+  imgDimLabel.textContent = idx === 0 ? 'Original' : `${imgMaxDim}px`;
+  imgDimHint.textContent  = DIM_HINTS[idx];
+  const pct = (idx / 4) * 100;
+  imgDimSlider.style.setProperty('--fill', pct + '%');
+  updateImgPreview();
+});
+
+// ─── Live preview (debounced) ───
+let previewTimer = null;
+function updateImgPreview() {
+  if (!imgFile) return;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    const blob = await compressImageToBlob(imgFile, imgFormat, imgQuality, imgMaxDim);
+    if (imgPreviewAfter.src && imgPreviewAfter.src.startsWith('blob:')) {
+      URL.revokeObjectURL(imgPreviewAfter.src);
+    }
+    imgPreviewAfter.src = URL.createObjectURL(blob);
+  }, 300);
+}
+
+// ─── Compress ───
+imgCompressBtn.addEventListener('click', async () => {
+  if (!imgFile) return;
+  imgCompressBtn.disabled = true;
+  imgCompressBtn.textContent = 'Compressing…';
+  try {
+    imgOutputBlob = await compressImageToBlob(imgFile, imgFormat, imgQuality, imgMaxDim);
+    const base    = imgFile.name.replace(/\.[^.]+$/, '');
+    const ext     = imgFormat === 'jpeg' ? 'jpg' : imgFormat;
+    imgOutputName = `${base}_compressed.${ext}`;
+
+    imgResultAfter.src = URL.createObjectURL(imgOutputBlob);
+    imgResultBeforeLabel.textContent = formatBytes(imgFile.size);
+    imgResultAfterLabel.textContent  = formatBytes(imgOutputBlob.size);
+
+    imgOriginalSizeEl.textContent   = formatBytes(imgFile.size);
+    imgCompressedSizeEl.textContent = formatBytes(imgOutputBlob.size);
+
+    const saved = ((imgFile.size - imgOutputBlob.size) / imgFile.size) * 100;
+    imgSavedPctEl.textContent = saved > 0
+      ? `−${Math.round(saved)}%`
+      : `+${Math.abs(Math.round(saved))}%`;
+    imgSavedPctEl.className = 'stat-value ' + (saved > 0 ? 'purple' : '');
+
+    hide(imgConfigSection);
+    show(imgResultSection);
+  } finally {
+    imgCompressBtn.disabled = false;
+    imgCompressBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Compress Image`;
+  }
+});
+
+function compressImageToBlob(file, format, quality, maxDim) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+
+      if (maxDim > 0 && (width > maxDim || height > maxDim)) {
+        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else                 { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // White background for JPEG (no transparency)
+      if (format === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const mimeType = format === 'jpeg' ? 'image/jpeg'
+                     : format === 'webp' ? 'image/webp'
+                     : 'image/png';
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')),
+        mimeType, format === 'png' ? undefined : quality);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// ─── Download image ───
+imgDownloadBtn.addEventListener('click', () => {
+  const url = URL.createObjectURL(imgOutputBlob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = imgOutputName; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+});
+
+// ─── Reset image ───
+imgCompressAnother.addEventListener('click', () => {
+  imgFile = null; imgOutputBlob = null; imgFileInput.value = '';
+  imgPreviewBefore.src = ''; imgPreviewAfter.src = '';
+  hide(imgResultSection);
+  show(imgUploadSection);
+});
+
 // ─── Helpers ───
 function setProgress(pct, label) {
   progressFill.style.width  = pct + '%';
