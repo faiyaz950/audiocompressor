@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AudioShrink — Compress Audio Without Losing Quality</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <main>
+    <header>
+      <div class="logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect width="36" height="36" rx="10" fill="url(#logoGrad)"/>
+          <path d="M10 18 Q13 10 18 18 Q23 26 26 18" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <circle cx="10" cy="18" r="2" fill="white"/>
+          <circle cx="26" cy="18" r="2" fill="white"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="36" y2="36">
+              <stop offset="0%" stop-color="#6366f1"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>AudioShrink</span>
+      </div>
+      <p class="tagline">Compress audio files — smaller size, same crystal-clear voice</p>
+    </header>
+
+    <div class="card" id="mainCard">
+      <!-- Step 1: Upload -->
+      <div id="uploadSection">
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" accept="audio/*" hidden />
+          <div class="drop-icon">
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <circle cx="26" cy="26" r="26" fill="rgba(99,102,241,0.1)"/>
+              <path d="M26 34V20M26 20L20 26M26 20L32 26" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 36h20" stroke="#6366f1" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+            </svg>
+          </div>
+          <p class="drop-title">Drop your audio file here</p>
+          <p class="drop-sub">or <button class="link-btn" onclick="document.getElementById('fileInput').click()">browse to upload</button></p>
+          <p class="drop-formats">Supports MP3, WAV, AAC, FLAC, OGG, M4A, OPUS</p>
+        </div>
+      </div>
+
+      <!-- Step 2: Configure -->
+      <div id="configSection" class="hidden">
+        <div class="file-info" id="fileInfo">
+          <div class="file-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="10" fill="rgba(99,102,241,0.12)"/>
+              <path d="M20 26V14M20 14L15 19M20 14L25 19" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="file-details">
+            <p class="file-name" id="fileName">—</p>
+            <p class="file-size" id="fileSize">—</p>
+          </div>
+          <button class="icon-btn" id="removeFile" title="Remove file">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Output Format</label>
+            <div class="format-pills" id="formatPills">
+              <button class="pill active" data-format="mp3">MP3</button>
+            </div>
+            <p class="hint" style="margin-top:8px">Universal format — plays on all devices</p>
+          </div>
+
+          <div class="setting-group">
+            <label>
+              Quality / Bitrate
+              <span class="badge" id="bitrateLabel">96 kbps</span>
+            </label>
+            <div class="slider-track">
+              <input type="range" id="bitrateSlider" min="0" max="4" step="1" value="2" />
+              <div class="slider-marks">
+                <span>32k</span>
+                <span>64k</span>
+                <span>128k</span>
+                <span>192k</span>
+                <span>320k</span>
+              </div>
+            </div>
+            <p class="hint" id="qualityHint">Good balance — ideal for voice &amp; podcasts</p>
+          </div>
+        </div>
+
+        <button class="compress-btn" id="compressBtn">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3v14M3 10l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Compress Audio
+        </button>
+      </div>
+
+      <!-- Step 3: Progress -->
+      <div id="progressSection" class="hidden">
+        <div class="progress-wrap">
+          <div class="waveform-anim">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <p class="progress-label" id="progressLabel">Initialising compressor…</p>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+          <p class="progress-pct" id="progressPct">0%</p>
+        </div>
+      </div>
+
+      <!-- Step 4: Result -->
+      <div id="resultSection" class="hidden">
+        <div class="result-icon">
+          <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+            <circle cx="28" cy="28" r="28" fill="rgba(16,185,129,0.1)"/>
+            <path d="M18 28l7 7 13-14" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="result-title">Compression Complete!</h2>
+
+        <div class="stats-row">
+          <div class="stat">
+            <span class="stat-label">Original</span>
+            <span class="stat-value" id="originalSize">—</span>
+          </div>
+          <div class="stat-arrow">
+            <svg width="32" height="16" viewBox="0 0 32 16"><path d="M0 8h28M22 2l8 6-8 6" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Compressed</span>
+            <span class="stat-value green" id="compressedSize">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Saved</span>
+            <span class="stat-value purple" id="savedPct">—</span>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="download-btn" id="downloadBtn">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 3v10M5 9l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Download Compressed File
+          </button>
+          <button class="secondary-btn" id="compressAnother">Compress Another File</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <div>
+          <strong>100% Private</strong>
+          <p>All processing happens in your browser. No file is ever uploaded to any server.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <div>
+          <strong>Fast & Free</strong>
+          <p>Powered by FFmpeg WebAssembly — no installs, no sign-up required.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎙️</div>
+        <div>
+          <strong>Voice-Optimised</strong>
+          <p>Smart bitrate presets that preserve voice clarity while cutting file size up to 90%.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AudioShrink · Built with FFmpeg WASM · Zero server uploads</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
