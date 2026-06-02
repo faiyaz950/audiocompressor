@@ -11,7 +11,7 @@ const HINTS = [
 ];
 
 let selectedFile   = null;
-let selectedBitrate = 96;
+let selectedBitrate = 64; // matches slider default index 2
 let outputBlob     = null;
 let outputFilename = '';
 
@@ -127,16 +127,27 @@ async function encodeMp3() {
   const leftPCM     = audioBuffer.getChannelData(0);
   const rightPCM    = numChannels > 1 ? audioBuffer.getChannelData(1) : audioBuffer.getChannelData(0);
 
-  // 2. Guard: detect input bitrate so we never encode HIGHER than original
-  const inputKbps = (selectedFile.size * 8) / (audioBuffer.duration * 1000);
-  let targetBitrate = selectedBitrate;
+  // 2. Pick a bitrate that guarantees the output is smaller than input
+  const durationSecs = audioBuffer.duration;
+  // Expected output bytes for a given bitrate
+  const expectedBytes = kbps => (kbps * 1000 * durationSecs) / 8;
 
-  if (targetBitrate >= inputKbps) {
-    // Pick the highest preset that is strictly below the input bitrate
-    const lower = BITRATES.filter(b => b < inputKbps);
-    targetBitrate = lower.length ? lower[lower.length - 1] : BITRATES[0];
+  // Rates where output will be meaningfully smaller (at least 15% reduction)
+  const compressibleRates = BITRATES.filter(b => expectedBytes(b) < selectedFile.size * 0.85);
 
-    // Sync slider UI to reflect the auto-corrected value
+  let targetBitrate;
+  if (compressibleRates.length === 0) {
+    // File is already tiny/maximally compressed — use lowest bitrate as best effort
+    targetBitrate = BITRATES[0];
+  } else if (compressibleRates.includes(selectedBitrate)) {
+    targetBitrate = selectedBitrate;
+  } else {
+    // User's selected bitrate is too high — use the best rate that still compresses
+    targetBitrate = compressibleRates[compressibleRates.length - 1];
+  }
+
+  // Sync slider UI if we auto-corrected
+  if (targetBitrate !== selectedBitrate) {
     const newIdx = BITRATES.indexOf(targetBitrate);
     bitrateSlider.value = newIdx;
     bitrateLabel.textContent = `${targetBitrate} kbps`;
@@ -144,7 +155,8 @@ async function encodeMp3() {
     bitrateSlider.style.setProperty('--fill', (newIdx / (BITRATES.length - 1)) * 100 + '%');
   }
 
-  setProgress(15, `Encoding to MP3 at ${targetBitrate} kbps (original ~${Math.round(inputKbps)} kbps)…`);
+  const inputKbps = Math.round((selectedFile.size * 8) / (durationSecs * 1000));
+  setProgress(15, `Encoding at ${targetBitrate} kbps (original ~${inputKbps} kbps)…`);
 
   // 3. Encode PCM → MP3 with lamejs (runs synchronously in chunks)
   const encoder  = new lamejs.Mp3Encoder(numChannels, sampleRate, targetBitrate);
