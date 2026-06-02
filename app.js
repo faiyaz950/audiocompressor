@@ -443,31 +443,63 @@ async function compressImageToBlob(file, format, quality, maxDim) {
   if (format === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); }
   ctx.drawImage(img, 0, 0, width, height);
 
-  const mime = format === 'jpeg' ? 'image/jpeg'
-             : format === 'webp' ? 'image/webp'
-             : 'image/png';
+  // For PNG: browser encoder is often worse than original — try WebP first (keeps transparency),
+  // fall back to JPEG only if image has no alpha channel.
+  if (format === 'png') {
+    // Try WebP lossy — much smaller, full transparency support
+    const webpBlob = await tryQualityLoop(canvas, 'image/webp', quality, file.size);
+    if (webpBlob && webpBlob.size < file.size * 0.85) {
+      setImgFormatUI('webp');
+      imgOutputName = imgOutputName.replace(/\.[^.]+$/, '.webp');
+      return webpBlob;
+    }
+    // Try lossless PNG encode (might work if original was unoptimised)
+    const pngBlob = await canvasToBlob(canvas, 'image/png', undefined);
+    if (pngBlob.size < file.size * 0.85) return pngBlob;
 
-  // For PNG (lossless) just encode once — rely on resize for savings
-  if (format === 'png') return canvasToBlob(canvas, mime, undefined);
+    // Last resort: JPEG (no transparency)
+    const jpegBlob = await tryQualityLoop(canvas, 'image/jpeg', quality, file.size);
+    if (jpegBlob && jpegBlob.size < file.size * 0.85) {
+      setImgFormatUI('jpeg');
+      imgOutputName = imgOutputName.replace(/\.[^.]+$/, '.jpg');
+      return jpegBlob;
+    }
+    // Return smallest we found
+    return [webpBlob, pngBlob, jpegBlob]
+      .filter(Boolean)
+      .sort((a, b) => a.size - b.size)[0];
+  }
 
-  // For JPEG/WebP: step quality down until output is at least 15% smaller than input
-  let q = quality;
+  // JPEG / WebP — step quality down until meaningfully smaller
+  const mime = format === 'jpeg' ? 'image/jpeg' : 'image/webp';
+  const blob = await tryQualityLoop(canvas, mime, quality, file.size);
+  return blob;
+}
+
+async function tryQualityLoop(canvas, mime, startQuality, inputSize) {
+  let q = startQuality;
   let blob;
   do {
     blob = await canvasToBlob(canvas, mime, q);
-    if (blob.size < file.size * 0.85) break;  // success — meaningfully smaller
-    q = Math.round((q - 0.08) * 100) / 100;   // reduce by ~8% each step
+    if (blob.size < inputSize * 0.85) break;
+    q = Math.round((q - 0.08) * 100) / 100;
   } while (q >= 0.08);
 
-  // Update slider UI to reflect the quality actually used
-  if (q !== quality) {
-    const pct = Math.round(q * 100);
-    imgQualitySlider.value = Math.max(10, pct);
-    imgQualityLabel.textContent = `${Math.max(10, pct)}%`;
+  // Sync quality slider if auto-adjusted
+  const usedPct = Math.round(q * 100);
+  if (usedPct !== Math.round(startQuality * 100)) {
+    imgQualitySlider.value = Math.max(10, usedPct);
+    imgQualityLabel.textContent = `${Math.max(10, usedPct)}%`;
     imgQuality = q;
   }
-
   return blob;
+}
+
+function setImgFormatUI(format) {
+  imgFormat = format;
+  document.querySelectorAll('.pill-pink').forEach(p => {
+    p.classList.toggle('active', p.dataset.format === format);
+  });
 }
 
 function loadImage(file) {
